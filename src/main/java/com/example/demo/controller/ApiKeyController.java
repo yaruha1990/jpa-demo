@@ -26,13 +26,26 @@ public class ApiKeyController {
 
     @PostMapping
     public ApiKey save(@RequestBody ApiKey apiKey) {
-        final List<UUID> clientsIds = apiKey.getClients().stream().map(Client::getId).toList();
+        if (apiKey.getId() != null) {
+            final Optional<ApiKey> byId = apiKeyRepo.findById(apiKey.getId());
+            if (byId.isPresent()) {
+                final List<UUID> clientsIds = apiKey.getClients().stream().map(Client::getId).toList();
+                final List<Client> existingClients = clientRepo.findAllById(clientsIds);
+                existingClients.forEach(c -> c.setApiKey(apiKey));
+                clientRepo.saveAll(existingClients);
+                return apiKeyRepo.save(apiKey);
+            } else {
+                throw new RuntimeException("API KEY does not exist");
+            }
+        }
+
+        final ApiKey saved = apiKeyRepo.save(apiKey);
+        final List<UUID> clientsIds = saved.getClients().stream().map(Client::getId).toList();
         final List<Client> existingClients = clientRepo.findAllById(clientsIds);
-
-        existingClients.forEach(c -> c.setApiKey(apiKey));
-
+        existingClients.forEach(c -> c.setApiKey(saved));
         clientRepo.saveAll(existingClients);
-        return apiKeyRepo.save(apiKey);
+
+        return saved;
     }
 
     @DeleteMapping("/{id}")
