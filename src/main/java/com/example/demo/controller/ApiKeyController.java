@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.converter.ApiKeyConverter;
+import com.example.demo.converter.ClientConverter;
 import com.example.demo.domain.ApiKey;
+import com.example.demo.domain.Client;
 import com.example.demo.dto.ApiKeyDto;
 import com.example.demo.repo.ApiKeyRepo;
 import com.example.demo.repo.ClientRepo;
@@ -20,15 +22,43 @@ public class ApiKeyController {
     private final ApiKeyRepo apiKeyRepo;
     private final ClientRepo clientRepo;
     private final ApiKeyConverter apiKeyConverter;
+    private final ClientConverter clientConverter;
 
     @GetMapping
-    public List<ApiKey> findAllApiKeys() {
-        return apiKeyRepo.findAll();
+    public List<ApiKeyDto> findAllApiKeys() {
+        final List<Client> clients = clientRepo.findAll();
+        final List<ApiKey> apiKeys = apiKeyRepo.findAll();
+
+        return apiKeys.stream().map(apiKey -> {
+
+            final List<UUID> clientsIds = clients.stream()
+                    .filter(client -> client.getApiKeyId().equals(apiKey.getId()))
+                    .map(Client::getId)
+                    .toList();
+
+            return ApiKeyDto.builder()
+                    .id(apiKey.getId())
+                    .apiKey(apiKey.getApiKey())
+                    .clientsIds(clientsIds)
+                    .build();
+        }).toList();
     }
 
     @PostMapping
-    public ApiKey create(@RequestBody ApiKeyDto apiKey) {
-        return null;
+    public ApiKey create(@RequestBody ApiKeyDto apiKeyDto) {
+        final ApiKey apiKey = apiKeyConverter.toEntity(apiKeyDto);
+        apiKey.setApiKey(UUID.randomUUID().toString());
+        final ApiKey saved = apiKeyRepo.save(apiKey);
+
+        final List<Client> clients = apiKeyDto.getClientsIds()
+                .stream()
+                .map(uuid -> Client.builder().id(uuid).build())
+                .toList();
+
+        clients.forEach(c -> c.setApiKeyId(saved.getId()));
+        clientRepo.saveAll(clients);
+
+        return saved;
     }
 
     @PutMapping

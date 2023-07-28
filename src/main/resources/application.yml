@@ -5,7 +5,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
   datasource:
     url: jdbc:postgresql://localhost:5432/test_db
     driver-class-name: org.postgresql.Driver
